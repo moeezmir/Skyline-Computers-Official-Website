@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Student Portal | Skyline Computers Srinagar</title>
+  <title>Student Login | Skyline Computers Srinagar</title>
   <meta name="theme-color" content="#0b1120">
   <link rel="icon" href="image.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1097,9 +1097,6 @@
     </div>
   </header>
   <main id="app"></main>
-  <div id="modal">
-    <div id="mbox"></div>
-  </div>
   <footer>
     <div class="wrap fc">
       <h4 style="font-size:20px"><span class="sk">SKYLINE</span> <span class="cm" style="color:#4a90e2">COMPUTERS</span></h4>
@@ -1123,8 +1120,6 @@
     const out2 = $('#out2');
     const lgn = $('#lgn');
     const lgn2 = $('#lgn2');
-    const modal = $('#modal');
-    const mbox = $('#mbox');
 
     $('#yr').textContent = new Date().getFullYear();
     const mm = $('#mm');
@@ -1255,34 +1250,29 @@
       const sessionResult = await db.auth.getSession();
       const session = sessionResult.data.session;
       if (!session) return loginView();
-      chrome(true);
       const adminResult = await db.from('admins').select('user_id').maybeSingle();
-      adminResult.data ? adminView() : studentView(session.user.id);
+      if (adminResult.data) { location.replace('admin.html'); return; }
+      chrome(true);
+      studentView(session.user.id);
     }
 
-    /* ---------- LOGIN ---------- */
-    function loginView(tab) {
-      tab = tab || 'student';
+    /* ---------- LOGIN (students only) ---------- */
+    function loginView() {
       chrome(false);
-      const st = (tab === 'student');
       view('<section class="hero"><div class="wrap hg"><div>' +
         '<span class="pill"><i class="fas fa-award"></i>Government Registered IT Skill Center</span>' +
         '<h1>Check Your Progress, ID Card &amp; Certificate Online</h1>' +
         '<p class="lead">Log in with your Roll ID to see your course progress, topics left to study, fee summary and official documents from Skyline Computers.</p>' +
         '<div class="tiles">' + tile('Progress', 'Track your modules') + tile('ID Card', 'Your digital copy') + tile('Certificate', 'Download as PDF') + '</div></div>' +
-        '<div class="card"><span class="badge">' + (st ? 'Student Portal' : 'Staff Only') + '</span>' +
-        '<h2 class="ct"><i class="fas ' + (st ? 'fa-user-graduate' : 'fa-user-shield') + '"></i>' + (st ? 'Student Login' : 'Admin Panel') + '</h2>' +
-        '<p class="mut" style="margin-top:6px">' + (st ? 'Use the Roll ID and password given by the institute.' : 'Administrators sign in with their email and password.') + '</p>' +
-        '<div class="seg"><button data-t="student" class="' + (st ? 'on' : '') + '">Student</button><button data-t="admin" class="' + (st ? '' : 'on') + '">Admin</button></div>' +
-        '<form id="lf"><label class="lb" style="margin-top:12px">' + (st ? 'Student Roll ID *' : 'Admin Email *') + '</label>' +
-        '<input class="in" name="id" required autocomplete="username" autocapitalize="none" ' + (st ? 'placeholder="e.g. SKY202401"' : 'type="email" placeholder="admin@example.com"') + '>' +
+        '<div class="card"><span class="badge">Student Portal</span>' +
+        '<h2 class="ct"><i class="fas fa-user-graduate"></i>Student Login</h2>' +
+        '<p class="mut" style="margin-top:6px">Use the Roll ID and password given by the institute.</p>' +
+        '<form id="lf"><label class="lb" style="margin-top:12px">Student Roll ID *</label>' +
+        '<input class="in" name="id" required autocomplete="username" autocapitalize="none" placeholder="e.g. SKY202401">' +
         '<label class="lb">Password *</label><input class="in" name="pw" type="password" required autocomplete="current-password">' +
-        '<p class="er" id="err" role="alert"></p><button class="btn b w" style="margin-top:10px"><i class="fas fa-sign-in-alt"></i>' + (st ? 'Access Student Portal' : 'Enter Admin Panel') + '</button></form>' +
-        '<p class="fine"><i class="fas fa-lock"></i> Your details remain completely confidential.</p></div></div></section>');
-
-      app.querySelectorAll('[data-t]').forEach(function (b) {
-        b.onclick = function () { loginView(b.dataset.t); };
-      });
+        '<p class="er" id="err" role="alert"></p><button class="btn b w" style="margin-top:10px"><i class="fas fa-sign-in-alt"></i>Access Student Portal</button></form>' +
+        '<p class="fine"><i class="fas fa-lock"></i> Your details remain completely confidential.</p>' +
+        '<p class="fine" style="margin-top:8px"><a href="admin.html" style="text-decoration:underline">Staff? Go to Admin Login</a></p></div></div></section>');
 
       $('#lf').onsubmit = async function (e) {
         e.preventDefault();
@@ -1355,179 +1345,7 @@
         '</div></section>');
     }
 
-    /* ---------- ADMIN ---------- */
-    async function adminView() {
-      const { data } = await db.from('students').select('*').order('name');
-      list = data || [];
-      view('<section class="hero"><div class="wrap"><span class="pill"><i class="fas fa-user-shield"></i>Administrator Access</span>' +
-        '<h1>Student Management</h1><p class="lead">Add students, update progress, upload photographs, set start and end dates, and manage documents.</p>' +
-        '<div class="tiles">' + tile(list.length, 'Enrolled students') + tile(list.filter(function (s) { return s.cert_path; }).length, 'Certificates issued') + tile(money(list.reduce(function (a, s) { return a + due(s); }, 0)), 'Total fees due') + '</div></div></section>' +
-        '<section class="body"><div class="wrap"><div class="bar2"><input id="q" class="in" placeholder="Search by name, roll ID or course" aria-label="Search students"><button id="add" class="btn b"><i class="fas fa-plus"></i>Add Student</button></div>' +
-        '<p class="mut" style="margin:10px 0 20px">Showing <b id="cnt" style="color:var(--ink)">0</b> student records</p><div id="grid" class="g g3"></div></div></section>');
-      $('#add').onclick = function () { form(); };
-      let t;
-      $('#q').oninput = function () { clearTimeout(t); t = setTimeout(cards, 120); };
-      $('#grid').onclick = function (e) {
-        const b = e.target.closest('[data-id]');
-        if (b) form(list.find(function (s) { return s.id === b.dataset.id; }));
-      };
-      cards();
-    }
-
-    function cards() {
-      const q = ($('#q').value || '').toLowerCase().trim();
-      const L = list.filter(function (s) {
-        return (s.name + ' ' + s.student_id + ' ' + (s.course || '')).toLowerCase().includes(q);
-      });
-      $('#cnt').textContent = L.length;
-
-      if (!L.length) {
-        $('#grid').innerHTML = '<div class="w" style="grid-column:1/-1;text-align:center">No student records found.</div>';
-        return;
-      }
-
-      let html = '';
-      for (let i = 0; i < L.length; i++) {
-        const s = L[i];
-        const dates = getCourseDates(s);
-        html += '<div class="w" style="display:flex;flex-direction:column"><div style="flex:1">' +
-          '<span class="idc">' + esc(s.student_id) + '</span>' +
-          '<h3 style="margin-bottom:4px;margin-top:6px">' + esc(s.name) + '</h3><p class="mut" style="margin-bottom:14px">' + esc(s.course || '') + '</p>' +
-          '<div class="rw" style="font-size:13px"><span>Start: <b>' + esc(dates.start) + '</b></span><span>End: <b>' + esc(dates.end) + '</b></span></div>' +
-          '<div class="rw" style="border:0;padding-top:6px;font-size:14px"><span>Progress</span><b>' + pct(s) + '% (' + s.completed_modules + '/' + s.total_modules + ')</b></div><div class="pg"><i style="width:' + pct(s) + '%"></i></div>' +
-          '<p class="mut" style="font-size:13px;margin-bottom:12px">Pending: ' + esc(lines(s.topics).join(', ') || 'All topics completed') + '</p>' +
-          '<span class="ch ' + (s.photo_path ? 'y' : 'n') + '"><i class="fas fa-camera"></i> Photo</span>' +
-          '<span class="ch ' + (s.card_path ? 'y' : 'n') + '"><i class="fas fa-id-card"></i> ID</span>' +
-          '<span class="ch ' + (s.cert_path ? 'y' : 'n') + '"><i class="fas fa-certificate"></i> Cert</span>' +
-          '<span class="ch ' + (due(s) ? 'rd' : 'y') + '">Due ' + money(due(s)) + '</span></div>' +
-          '<button data-id="' + s.id + '" class="btn o w" style="margin-top:10px"><i class="fas fa-edit"></i>Edit / Manage</button></div>';
-      }
-      $('#grid').innerHTML = html;
-    }
-
-    function form(s) {
-      function fld(l, n, v, x, c) {
-        return '<div class="' + (c || '') + '"><label class="lb">' + l + '</label><input class="in" name="' + n + '" value="' + esc(v) + '" ' + (x || '') + '></div>';
-      }
-
-      mbox.innerHTML = '<div class="mh"><h2 class="ct"><i class="fas fa-user-plus"></i>' + (s ? 'Edit Student' : 'Register New Student') + '</h2><button type="button" id="x" aria-label="Close"><i class="fas fa-times"></i></button></div>' +
-        '<form id="f"><div class="fg">' +
-        fld('Student Roll ID *', 'sid', s ? s.student_id : '', 'required pattern="[A-Za-z0-9._\\-]+" placeholder="e.g. SKY202401" ' + (s ? 'readonly' : '')) +
-        fld(s ? 'New Password (blank = keep)' : 'Login Password *', 'pw', '', 'minlength="6" autocomplete="off" ' + (s ? '' : 'required')) +
-        fld('Full Name *', 'name', s ? s.name : '', 'required') +
-        fld('Course Start / Admission Date *', 'join_date', s ? (s.join_date || '') : new Date().toISOString().slice(0, 10), 'type="date" required') +
-        '<div class="f2"><label class="lb">Enrolled Course</label><select class="in" name="course">' + COURSES.map(function (c) { return '<option ' + (c === (s ? s.course : '') ? 'selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></div>' +
-        fld('Course End Date (Optional / Overrides Auto)', 'course_end_date', s ? (s.course_end_date || '') : '', 'type="date"') +
-        fld('Total Course Modules', 'total_modules', s ? s.total_modules : 6, 'type="number" min="1" required') +
-        fld('Completed Modules', 'completed_modules', s ? s.completed_modules : 0, 'type="number" min="0" required') +
-        fld('Total Course Fee (₹)', 'fee_total', s ? s.fee_total : 0, 'type="number" min="0" required') +
-        fld('Fee Paid (₹)', 'fee_paid', s ? s.fee_paid : 0, 'type="number" min="0" required') +
-        '<div class="f2"><label class="lb">Student Photograph (JPG, PNG)' + (s && s.photo_path ? ' - uploaded' : '') + '</label><input class="in" name="photo" type="file" accept="image/*"></div>' +
-        '<div><label class="lb">ID Card (PDF or image)' + (s && s.card_path ? ' - uploaded' : '') + '</label><input class="in" name="card" type="file" accept="application/pdf,image/*"></div>' +
-        '<div><label class="lb">Certificate (PDF)' + (s && s.cert_path ? ' - uploaded' : '') + '</label><input class="in" name="cert" type="file" accept="application/pdf,image/*"></div>' +
-        '<div class="f2"><label class="lb">Topics Left To Study (one per line)</label><textarea class="in" name="topics" rows="3">' + esc(s ? s.topics : '') + '</textarea></div>' +
-        '<div class="f2"><label class="lb">Completed Topics (one per line)</label><textarea class="in" name="completed_topics" rows="3">' + esc(s ? s.completed_topics : '') + '</textarea></div></div>' +
-        '<p id="err" role="alert" class="er"></p>' +
-        '<div class="ma">' + (s ? '<button type="button" id="del" class="btn x">Delete Student</button>' : '') + '<button type="button" id="cx" class="btn o">Cancel</button><button id="ok" class="btn b"><i class="fas fa-save"></i>Save Record</button></div></form>';
-
-      const close = function () {
-        modal.style.display = 'none';
-        document.body.style.overflow = '';
-      };
-      $('#x').onclick = $('#cx').onclick = close;
-      $('#f').onsubmit = function (e) { save(e, s, close); };
-
-      $('[name=course]').onchange = function (e) {
-        if (!s) {
-          const m = MOD[e.target.value.split(' ')[0]];
-          if (m) $('[name=total_modules]').value = m;
-        }
-      };
-
-      if (s) {
-        $('#del').onclick = async function () {
-          if (!confirm('Delete ' + s.name + '? This removes their login and record.')) return;
-          const { error } = await db.rpc('delete_student', { uid: s.id });
-          if (error) return $('#err').textContent = error.message;
-          close();
-          adminView();
-        };
-      }
-
-      modal.style.display = 'block';
-      document.body.style.overflow = 'hidden';
-    }
-
-    async function save(e, s, close) {
-      e.preventDefault();
-      const f = new FormData(e.target);
-      const ok = $('#ok');
-      ok.disabled = true;
-      ok.textContent = 'Saving...';
-      $('#err').textContent = '';
-
-      try {
-        let id = s ? s.id : null;
-        const sid = f.get('sid').trim();
-
-        if (!s) {
-          const t = supabase.createClient(SB_URL, SB_KEY, { auth: { persistSession: false, autoRefreshToken: false, storageKey: 'tmp' } });
-          const { data, error } = await t.auth.signUp({ email: mail(sid), password: f.get('pw') });
-          if (error) throw error;
-          if (!data.user || (data.user.identities && !data.user.identities.length)) throw new Error('That Roll ID already exists.');
-          id = data.user.id;
-        } else if (f.get('pw')) {
-          const { error } = await db.rpc('set_password', { uid: id, pw: f.get('pw') });
-          if (error) throw error;
-        }
-
-        const n = function (k) { return Math.max(0, +f.get(k) || 0); };
-        const row = {
-          name: f.get('name').trim(),
-          course: f.get('course'),
-          join_date: f.get('join_date') || null,
-          course_end_date: f.get('course_end_date') || null,
-          total_modules: Math.max(1, n('total_modules')),
-          completed_modules: n('completed_modules'),
-          fee_total: n('fee_total'),
-          fee_paid: n('fee_paid'),
-          topics: f.get('topics').trim(),
-          completed_topics: f.get('completed_topics').trim()
-        };
-
-        const filesToUpload = [
-          ['photo', 'photo_path'],
-          ['cert', 'cert_path'],
-          ['card', 'card_path']
-        ];
-
-        for (let i = 0; i < filesToUpload.length; i++) {
-          const key = filesToUpload[i][0];
-          const col = filesToUpload[i][1];
-          const file = f.get(key);
-          if (file && file.size) {
-            const extMatch = file.name.match(/\.\w+$/);
-            const ext = extMatch ? extMatch[0].toLowerCase() : (key === 'photo' ? '.jpg' : '.pdf');
-            const p = id + '/' + key + '-' + Date.now() + ext;
-            const uploadRes = await db.storage.from('docs').upload(p, file, { upsert: true });
-            if (uploadRes.error) throw uploadRes.error;
-            row[col] = p;
-          }
-        }
-
-        const r = s ? await db.from('students').update(row).eq('id', id) : await db.from('students').insert(Object.assign({}, row, { id: id, student_id: sid }));
-        if (r.error) throw r.error;
-
-        close();
-        adminView();
-      } catch (err) {
-        $('#err').textContent = err.message;
-        ok.disabled = false;
-        ok.textContent = 'Save Record';
-      }
-    }
-
-    boot();
+        boot();
   </script>
 </body>
 
