@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://skylinecomputers.netlify.app/sitemap.xml
